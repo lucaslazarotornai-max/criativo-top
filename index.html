@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Criativo TOP</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#16161a;font-family:'Poppins',sans-serif;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:16px}
+input,textarea,button,select{font-family:'Poppins',sans-serif}
+input[type=range]{width:100%;accent-color:#9B6FD0}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(155,111,208,0.3);border-radius:4px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback } = React;
+
+const FORMATS = {
+  "Retrato": { w:1080,h:1350,dw:243,dh:304 },
+  "Feed":    { w:1080,h:1080,dw:243,dh:243 },
+  "Story":   { w:1080,h:1920,dw:171,dh:304 },
+};
+
+const CATEGORIES = {
+  editorial: { label:"Editorial Geral",        grad:"linear-gradient(145deg,#9B6FD0 0%,#C46FD0 55%,#D06F9B 100%)", ge:[[0,"#9B6FD0"],[.55,"#C46FD0"],[1,"#D06F9B"]], tagBg:"rgba(255,255,255,0.22)", tagColor:"#fff", subColor:"rgba(255,255,255,0.78)" },
+  negocios:  { label:"Negócios & Economia",    grad:"linear-gradient(145deg,#9B6FD0 0%,#4B9EF5 100%)",              ge:[[0,"#9B6FD0"],[1,"#4B9EF5"]],               tagBg:"rgba(75,158,245,0.38)",  tagColor:"#fff", subColor:"rgba(255,255,255,0.75)" },
+  lifestyle: { label:"Lifestyle & Saúde",      grad:"linear-gradient(145deg,#3DC99A 0%,#4B9EF5 100%)",              ge:[[0,"#3DC99A"],[1,"#4B9EF5"]],               tagBg:"rgba(61,201,154,0.38)", tagColor:"#fff", subColor:"rgba(255,255,255,0.80)" },
+  moda:      { label:"Moda & Comportamento",   grad:"linear-gradient(145deg,#C46FD0 0%,#9B6FD0 100%)",              ge:[[0,"#C46FD0"],[1,"#9B6FD0"]],               tagBg:"rgba(196,111,208,0.40)", tagColor:"#fff", subColor:"rgba(255,255,255,0.78)" },
+  eventos:   { label:"Eventos",                grad:"linear-gradient(145deg,#C46FD0 0%,#9B6FD0 40%,#4B9EF5 100%)", ge:[[0,"#C46FD0"],[.4,"#9B6FD0"],[1,"#4B9EF5"]], tagBg:"rgba(255,255,255,0.22)", tagColor:"#fff", subColor:"rgba(255,255,255,0.80)" },
+  toptv:     { label:"TopTV",                  grad:"linear-gradient(145deg,#1A1028 0%,#3A1A5C 60%,#1A1028 100%)", ge:[[0,"#1A1028"],[.6,"#3A1A5C"],[1,"#1A1028"]], tagBg:"rgba(155,111,208,0.38)", tagColor:"#C4A8E8", subColor:"rgba(196,168,232,0.80)" },
+};
+
+const TAGS = {
+  editorial:["Destaque","Capa","Especial","Entrevista","Matéria","Reportagem"],
+  negocios:["Negócios","Economia","Empreendedorismo","Indústria","Agro é Top","Mercado","Startup"],
+  lifestyle:["Saúde","Gastronomia","Bem-Estar","Top Health","Onde Ir","Esportes","Natureza"],
+  moda:["Moda","Beleza","Comportamento","Mulher","Estilo","Tendências"],
+  eventos:["Evento","Prêmio Top","Show","Festival","Lançamento","Convite"],
+  toptv:["TopTV","Ao Vivo","Entrevista","Bastidores","Episódio","Série"],
+};
+
+function CropModal({ src, onDone, onCancel }) {
+  const CW=340, CH=400;
+  const canvasRef=useRef();
+  const stateRef=useRef({img:null,ox:0,oy:0,scale:1,dragging:false,sx:0,sy:0});
+  const [scaleVal,setScaleVal]=useState(1);
+  const rafRef=useRef();
+
+  const draw=useCallback(()=>{
+    const cv=canvasRef.current; if(!cv)return;
+    const ctx=cv.getContext("2d");
+    const {img,ox,oy,scale}=stateRef.current; if(!img)return;
+    const PAD=14;
+    ctx.clearRect(0,0,CW,CH);
+    ctx.drawImage(img,ox,oy,img.naturalWidth*scale,img.naturalHeight*scale);
+    ctx.fillStyle="rgba(0,0,0,0.5)";
+    ctx.fillRect(0,0,CW,PAD); ctx.fillRect(0,CH-PAD,CW,PAD);
+    ctx.fillRect(0,PAD,PAD,CH-PAD*2); ctx.fillRect(CW-PAD,PAD,PAD,CH-PAD*2);
+    ctx.strokeStyle="rgba(255,255,255,0.9)"; ctx.lineWidth=1.5;
+    ctx.strokeRect(PAD,PAD,CW-PAD*2,CH-PAD*2);
+    ctx.strokeStyle="rgba(255,255,255,0.25)"; ctx.lineWidth=0.5;
+    for(let i=1;i<3;i++){
+      const gx=PAD+(CW-PAD*2)*i/3, gy=PAD+(CH-PAD*2)*i/3;
+      ctx.beginPath();ctx.moveTo(gx,PAD);ctx.lineTo(gx,CH-PAD);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(PAD,gy);ctx.lineTo(CW-PAD,gy);ctx.stroke();
+    }
+    const cs=12;
+    ctx.strokeStyle="#fff"; ctx.lineWidth=2.5;
+    [[PAD,PAD],[CW-PAD,PAD],[PAD,CH-PAD],[CW-PAD,CH-PAD]].forEach(([cx,cy])=>{
+      const dx=cx===PAD?1:-1, dy=cy===PAD?1:-1;
+      ctx.beginPath();ctx.moveTo(cx+dx*cs,cy);ctx.lineTo(cx,cy);ctx.lineTo(cx,cy+dy*cs);ctx.stroke();
+    });
+  },[]);
+
+  const clampOff=(ox,oy,scale,img)=>{
+    const iw=img.naturalWidth*scale, ih=img.naturalHeight*scale;
+    return{ox:Math.min(0,Math.max(CW-iw,ox)),oy:Math.min(0,Math.max(CH-ih,oy))};
+  };
+
+  useEffect(()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const sc=Math.max(CW/img.naturalWidth,CH/img.naturalHeight);
+      const {ox,oy}=clampOff((CW-img.naturalWidth*sc)/2,(CH-img.naturalHeight*sc)/2,sc,img);
+      stateRef.current={...stateRef.current,img,scale:sc,ox,oy};
+      setScaleVal(sc); draw();
+    };
+    img.src=src;
+  },[src,draw]);
+
+  const onPD=e=>{e.currentTarget.setPointerCapture(e.pointerId);const s=stateRef.current;stateRef.current={...s,dragging:true,sx:e.clientX-s.ox,sy:e.clientY-s.oy};};
+  const onPM=e=>{const s=stateRef.current;if(!s.dragging||!s.img)return;const{ox,oy}=clampOff(e.clientX-s.sx,e.clientY-s.sy,s.scale,s.img);stateRef.current={...s,ox,oy};cancelAnimationFrame(rafRef.current);rafRef.current=requestAnimationFrame(draw);};
+  const onPU=()=>{stateRef.current={...stateRef.current,dragging:false};};
+
+  const handleZoom=e=>{
+    const s=stateRef.current; if(!s.img)return;
+    const sc=Math.max(Math.max(CW/s.img.naturalWidth,CH/s.img.naturalHeight),parseFloat(e.target.value));
+    const{ox,oy}=clampOff(s.ox,s.oy,sc,s.img);
+    stateRef.current={...s,scale:sc,ox,oy}; setScaleVal(sc); requestAnimationFrame(draw);
+  };
+
+  function confirm(){
+    const{img,ox,oy,scale}=stateRef.current; const PAD=14;
+    const ow=CW-PAD*2, oh=CH-PAD*2;
+    const out=document.createElement("canvas");
+    out.width=ow*2; out.height=oh*2;
+    const ctx=out.getContext("2d"); ctx.scale(2,2);
+    ctx.drawImage(img,ox-PAD,oy-PAD,img.naturalWidth*scale,img.naturalHeight*scale);
+    onDone(out.toDataURL("image/jpeg",0.96));
+  }
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
+      <div style={{background:"#18181b",borderRadius:18,padding:24,width:388,userSelect:"none"}}>
+        <p style={{margin:"0 0 3px",color:"#fff",fontWeight:700,fontSize:15}}>Ajustar foto</p>
+        <p style={{margin:"0 0 14px",color:"rgba(255,255,255,0.38)",fontSize:12}}>Arraste para reposicionar · zoom para aproximar</p>
+        <canvas ref={canvasRef} width={CW} height={CH}
+          style={{borderRadius:10,cursor:"grab",display:"block",width:"100%",touchAction:"none"}}
+          onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerLeave={onPU}/>
+        <div style={{marginTop:14,display:"flex",alignItems:"center",gap:10}}>
+          <span style={{color:"rgba(255,255,255,0.38)",fontSize:11,minWidth:32}}>Zoom</span>
+          <input type="range" min={0.1} max={5} step={0.005} value={scaleVal} onChange={handleZoom}/>
+          <span style={{color:"rgba(255,255,255,0.6)",fontSize:12,minWidth:36,textAlign:"right"}}>{Math.round(scaleVal*100)}%</span>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:16}}>
+          <button onClick={onCancel} style={{flex:1,padding:"9px 0",borderRadius:9,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"rgba(255,255,255,0.45)",fontSize:13,cursor:"pointer"}}>Cancelar</button>
+          <button onClick={confirm} style={{flex:2,padding:"9px 0",borderRadius:9,border:"none",background:"linear-gradient(135deg,#9B6FD0,#C46FD0)",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Aplicar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Preview({fmt,cat,data}){
+  const{dw,dh}=FORMATS[fmt];
+  const C=CATEGORIES[cat];
+  const sc=dw/243, pad=dw*0.05;
+  const photoTop=dh*0.125, photoH=dh*0.615;
+  return(
+    <div style={{width:dw,height:dh,borderRadius:10,overflow:"hidden",position:"relative",background:C.grad,flexShrink:0,border:"0.5px solid rgba(255,255,255,0.1)"}}>
+      <div style={{position:"absolute",top:-dh*.06,right:-dw*.08,width:dw*.38,height:dw*.38,borderRadius:"50%",background:"rgba(255,255,255,0.055)",pointerEvents:"none"}}/>
+      <div style={{position:"absolute",bottom:dh*.2,left:-dw*.1,width:dw*.28,height:dw*.28,borderRadius:"50%",background:"rgba(255,255,255,0.035)",pointerEvents:"none"}}/>
+      <div style={{position:"absolute",top:dh*.036,left:pad,right:pad,display:"flex",justifyContent:"space-between",alignItems:"flex-start",zIndex:2}}>
+        <div>
+          <div style={{color:"#fff",fontWeight:900,fontSize:19*sc,lineHeight:1,letterSpacing:-.5}}>TOP</div>
+          <div style={{color:"rgba(255,255,255,0.6)",fontSize:4.6*sc,letterSpacing:2.2,marginTop:1.5,fontWeight:500}}>REVISTA · CATANDUVA</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{color:"rgba(255,255,255,0.75)",fontSize:5.2*sc,fontWeight:600}}>{data.edicao}</div>
+          <div style={{color:"rgba(255,255,255,0.5)",fontSize:4.8*sc}}>{data.periodo}</div>
+        </div>
+      </div>
+      <div style={{position:"absolute",top:photoTop,left:pad,width:dw-pad*2,height:photoH,borderRadius:7*sc,overflow:"hidden",background:"rgba(255,255,255,0.12)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1}}>
+        {data.croppedImage
+          ?<img src={data.croppedImage} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} alt=""/>
+          :<div style={{textAlign:"center"}}>
+            <div style={{width:20*sc,height:20*sc,borderRadius:"50%",border:`1.5px dashed rgba(255,255,255,0.3)`,margin:"0 auto 4px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span style={{color:"rgba(255,255,255,0.35)",fontSize:10*sc,lineHeight:1}}>+</span>
+            </div>
+            <span style={{color:"rgba(255,255,255,0.32)",fontSize:5.2*sc}}>foto da capa</span>
+          </div>
+        }
+        <div style={{position:"absolute",bottom:0,left:0,right:0,height:"28%",background:"linear-gradient(transparent,rgba(0,0,0,0.15))",pointerEvents:"none"}}/>
+      </div>
+      <div style={{position:"absolute",bottom:0,left:0,right:0,padding:`${dh*.02}px ${pad}px ${dh*.033}px`,zIndex:2}}>
+        {data.selectedTags.length>0&&(
+          <div style={{display:"flex",flexWrap:"wrap",gap:3*sc,marginBottom:5*sc}}>
+            {data.selectedTags.map(t=>(
+              <span key={t} style={{background:C.tagBg,color:C.tagColor,fontSize:4.6*sc,fontWeight:700,letterSpacing:1.1,borderRadius:3*sc,padding:`${1.5*sc}px ${5.5*sc}px`}}>{t.toUpperCase()}</span>
+            ))}
+          </div>
+        )}
+        <div style={{color:"#fff",fontSize:10.5*sc,fontWeight:800,lineHeight:1.28,marginBottom:3*sc,textShadow:"0 1px 6px rgba(0,0,0,0.2)"}}>{data.titulo}</div>
+        {data.subtitulo&&<div style={{color:C.subColor,fontSize:5.5*sc,fontWeight:400,lineHeight:1.5}}>{data.subtitulo}</div>}
+      </div>
+    </div>
+  );
+}
+
+const Inp=({label,value,onChange,rows})=>(
+  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+    <label style={{fontSize:10,fontWeight:600,letterSpacing:1,color:"rgba(255,255,255,0.35)",textTransform:"uppercase"}}>{label}</label>
+    {rows
+      ?<textarea value={value} rows={rows} onChange={e=>onChange(e.target.value)} style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,color:"#fff",fontSize:12,padding:"7px 10px",resize:"none",outline:"none",lineHeight:1.5}}/>
+      :<input value={value} onChange={e=>onChange(e.target.value)} style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,color:"#fff",fontSize:12,padding:"7px 10px",outline:"none"}}/>
+    }
+  </div>
+);
+
+function App(){
+  const[fmt,setFmt]=useState("Retrato");
+  const[cat,setCat]=useState("editorial");
+  const[data,setData]=useState({edicao:"ED. 221",periodo:"ABR·MAI 2025",titulo:"A nova geração de empresários que está transformando Catanduva",subtitulo:"",selectedTags:["Destaque"],croppedImage:null});
+  const[rawSrc,setRawSrc]=useState(null);
+  const[showCrop,setShowCrop]=useState(false);
+  const fileRef=useRef();
+
+  const upd=(k,v)=>setData(d=>({...d,[k]:v}));
+  const toggleTag=t=>setData(d=>({...d,selectedTags:d.selectedTags.includes(t)?d.selectedTags.filter(x=>x!==t):[...d.selectedTags,t]}));
+  const switchCat=c=>{setCat(c);setData(d=>({...d,selectedTags:[]}));};
+
+  const handleFile=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{setRawSrc(ev.target.result);setShowCrop(true);};
+    r.readAsDataURL(f); e.target.value="";
+  };
+
+  const handleExport=()=>{
+    const{w,h}=FORMATS[fmt]; const C=CATEGORIES[cat];
+    const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+    const ctx=cv.getContext("2d");
+    const gr=ctx.createLinearGradient(0,0,w,h);
+    C.ge.forEach(([s,c])=>gr.addColorStop(s,c));
+    ctx.fillStyle=gr; ctx.fillRect(0,0,w,h);
+    const pad=w*.05, photoTop=h*.125, photoH=h*.615, photoW=w-pad*2;
+    const finish=()=>{
+      ctx.fillStyle="#fff"; ctx.font=`900 88px Poppins,sans-serif`; ctx.textAlign="left";
+      ctx.fillText("TOP",pad,h*.105);
+      ctx.fillStyle="rgba(255,255,255,0.6)"; ctx.font=`500 24px Poppins,sans-serif`;
+      ctx.fillText("REVISTA · CATANDUVA",pad,h*.135);
+      ctx.textAlign="right";
+      ctx.fillStyle="rgba(255,255,255,0.75)"; ctx.font=`600 26px Poppins,sans-serif`;
+      ctx.fillText(data.edicao,w-pad,h*.105);
+      ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.font=`400 24px Poppins,sans-serif`;
+      ctx.fillText(data.periodo,w-pad,h*.133);
+      ctx.textAlign="left";
+      ctx.font=`700 22px Poppins,sans-serif`;
+      let tx=pad, tagY=h-h*.225;
+      data.selectedTags.forEach(t=>{
+        const tw=ctx.measureText(t.toUpperCase()).width+28;
+        ctx.fillStyle="rgba(255,255,255,0.22)";
+        ctx.beginPath();ctx.roundRect(tx,tagY-28,tw,40,6);ctx.fill();
+        ctx.fillStyle="#fff"; ctx.fillText(t.toUpperCase(),tx+14,tagY+4);
+        tx+=tw+8;
+      });
+      ctx.fillStyle="#fff"; ctx.font=`800 54px Poppins,sans-serif`;
+      const maxW=w*.9, words=data.titulo.split(" ");
+      let line="",lines=[],ty=h-h*.16;
+      for(const word of words){const test=line+(line?" ":"")+word;if(ctx.measureText(test).width>maxW&&line){lines.push(line);line=word;}else line=test;}
+      lines.push(line);
+      lines.forEach((l,i)=>ctx.fillText(l,pad,ty+i*64));
+      if(data.subtitulo){ctx.fillStyle=C.subColor;ctx.font=`400 26px Poppins,sans-serif`;ctx.fillText(data.subtitulo,pad,h-h*.028);}
+      const a=document.createElement("a"); a.download=`top-${cat}-${fmt.toLowerCase()}.png`; a.href=cv.toDataURL("image/png"); a.click();
+    };
+    ctx.save(); ctx.beginPath(); ctx.roundRect(pad,photoTop,photoW,photoH,26); ctx.clip();
+    if(data.croppedImage){const img=new Image();img.onload=()=>{ctx.drawImage(img,pad,photoTop,photoW,photoH);ctx.restore();finish();};img.src=data.croppedImage;}
+    else{ctx.fillStyle="rgba(255,255,255,0.12)";ctx.fillRect(pad,photoTop,photoW,photoH);ctx.restore();finish();}
+  };
+
+  const C=CATEGORIES[cat];
+  const sb={display:"block",width:"100%",marginBottom:3,padding:"6px 10px",fontSize:12,borderRadius:8,cursor:"pointer",textAlign:"left"};
+
+  return(
+    <div style={{display:"flex",width:"100%",maxWidth:900,minHeight:640,borderRadius:14,overflow:"hidden",border:"0.5px solid rgba(255,255,255,0.06)"}}>
+      {showCrop&&<CropModal src={rawSrc} onDone={v=>{upd("croppedImage",v);setShowCrop(false);}} onCancel={()=>setShowCrop(false)}/>}
+
+      {/* SIDEBAR */}
+      <div style={{width:232,background:"#111113",padding:"14px 12px",display:"flex",flexDirection:"column",gap:13,overflowY:"auto",flexShrink:0}}>
+        <div>
+          <p style={{margin:"0 0 7px",fontSize:10,fontWeight:600,letterSpacing:1,color:"rgba(255,255,255,0.32)",textTransform:"uppercase"}}>Categoria</p>
+          {Object.entries(CATEGORIES).map(([k,v])=>(
+            <button key={k} onClick={()=>switchCat(k)} style={{...sb,border:cat===k?"1px solid rgba(155,111,208,0.6)":"1px solid rgba(255,255,255,0.07)",background:cat===k?"rgba(155,111,208,0.18)":"rgba(255,255,255,0.03)",color:cat===k?"#d8b4fe":"rgba(255,255,255,0.48)",fontWeight:cat===k?600:400}}>{v.label}</button>
+          ))}
+        </div>
+        <div>
+          <p style={{margin:"0 0 7px",fontSize:10,fontWeight:600,letterSpacing:1,color:"rgba(255,255,255,0.32)",textTransform:"uppercase"}}>Formato</p>
+          {Object.entries(FORMATS).map(([k,v])=>(
+            <button key={k} onClick={()=>setFmt(k)} style={{...sb,border:fmt===k?"1px solid rgba(155,111,208,0.55)":"1px solid rgba(255,255,255,0.07)",background:fmt===k?"rgba(155,111,208,0.15)":"rgba(255,255,255,0.03)",color:fmt===k?"#d8b4fe":"rgba(255,255,255,0.42)",fontWeight:fmt===k?600:400}}>
+              {k} <span style={{fontSize:10,opacity:.5}}>{v.w}×{v.h}</span>
+            </button>
+          ))}
+        </div>
+        <div>
+          <p style={{margin:"0 0 7px",fontSize:10,fontWeight:600,letterSpacing:1,color:"rgba(255,255,255,0.32)",textTransform:"uppercase"}}>Foto da Capa</p>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleFile}/>
+          <div onClick={()=>fileRef.current.click()} style={{borderRadius:10,cursor:"pointer",border:"1.5px dashed rgba(155,111,208,0.38)",background:"rgba(155,111,208,0.05)",overflow:"hidden"}}>
+            {data.croppedImage
+              ?<><img src={data.croppedImage} style={{width:"100%",height:72,objectFit:"cover",display:"block"}} alt=""/><div style={{textAlign:"center",padding:"5px 0",fontSize:11,color:"#d8b4fe"}}>Trocar foto</div></>
+              :<div style={{padding:"20px 0",display:"flex",flexDirection:"column",alignItems:"center",gap:5,color:"rgba(255,255,255,0.4)",fontSize:12}}>
+                <span style={{fontSize:20,color:"rgba(155,111,208,0.7)",lineHeight:1}}>+</span><span>Upload de foto</span>
+              </div>
+            }
+          </div>
+          {data.croppedImage&&<button onClick={()=>{setRawSrc(data.croppedImage);setShowCrop(true);}} style={{marginTop:4,width:"100%",padding:"5px 0",borderRadius:7,border:"1px solid rgba(255,255,255,0.08)",background:"transparent",color:"rgba(255,255,255,0.35)",fontSize:11,cursor:"pointer"}}>Ajustar crop</button>}
+        </div>
+        <div>
+          <p style={{margin:"0 0 7px",fontSize:10,fontWeight:600,letterSpacing:1,color:"rgba(255,255,255,0.32)",textTransform:"uppercase"}}>Tags</p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+            {(TAGS[cat]||[]).map(t=>{const sel=data.selectedTags.includes(t);return(
+              <button key={t} onClick={()=>toggleTag(t)} style={{padding:"4px 9px",fontSize:11,borderRadius:20,cursor:"pointer",border:sel?"1px solid rgba(155,111,208,0.7)":"1px solid rgba(255,255,255,0.09)",background:sel?"rgba(155,111,208,0.28)":"rgba(255,255,255,0.04)",color:sel?"#d8b4fe":"rgba(255,255,255,0.42)",fontWeight:sel?600:400}}>{t}</button>
+            );})}
+          </div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <p style={{margin:0,fontSize:10,fontWeight:600,letterSpacing:1,color:"rgba(255,255,255,0.32)",textTransform:"uppercase"}}>Conteúdo</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <Inp label="Edição" value={data.edicao} onChange={v=>upd("edicao",v)}/>
+            <Inp label="Período" value={data.periodo} onChange={v=>upd("periodo",v)}/>
+          </div>
+          <Inp label="Título" value={data.titulo} onChange={v=>upd("titulo",v)} rows={4}/>
+          <Inp label="Subtítulo (opcional)" value={data.subtitulo} onChange={v=>upd("subtitulo",v)}/>
+        </div>
+        <button onClick={handleExport} style={{marginTop:"auto",padding:"10px 0",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${C.ge[0][1]},${C.ge[C.ge.length-1][1]})`,color:"#fff",fontSize:13,fontWeight:700}}>
+          Baixar PNG
+        </button>
+      </div>
+
+      {/* PREVIEW */}
+      <div style={{flex:1,background:"#16161a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,padding:24}}>
+        <div style={{display:"flex",gap:6}}>
+          {Object.keys(FORMATS).map(f=>(
+            <button key={f} onClick={()=>setFmt(f)} style={{padding:"4px 14px",fontSize:11,borderRadius:20,cursor:"pointer",border:fmt===f?"1px solid rgba(155,111,208,0.65)":"1px solid rgba(255,255,255,0.08)",background:fmt===f?"rgba(155,111,208,0.22)":"transparent",color:fmt===f?"#d8b4fe":"rgba(255,255,255,0.28)"}}>{f}</button>
+          ))}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:7}}>
+          <div style={{width:7,height:7,borderRadius:"50%",background:C.grad}}/>
+          <span style={{fontSize:11,color:"rgba(255,255,255,0.3)"}}>{C.label}</span>
+        </div>
+        <Preview fmt={fmt} cat={cat} data={data}/>
+        <p style={{margin:0,fontSize:10,color:"rgba(255,255,255,0.16)"}}>{FORMATS[fmt].w}×{FORMATS[fmt].h}px</p>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
